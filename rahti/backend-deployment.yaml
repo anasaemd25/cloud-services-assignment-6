@@ -22,6 +22,8 @@ spec:
                   envFrom:
                       - configMapRef:
                             name: app-config
+                      - secretRef:
+                            name: generic-mysql-secret
                   env:
                       - name: DB_PASSWORD
                         valueFrom:
