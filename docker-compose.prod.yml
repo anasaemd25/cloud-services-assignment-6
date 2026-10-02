@@ -1,0 +1,38 @@
+services:
+  database:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: anasaemd/three-tier-backend:latest
+    environment:
+      DB_HOST: database
+      DB_PORT: 3306
+      DB_NAME: appdb
+      DB_USER: appuser
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      database:
+        condition: service_healthy
+
+  frontend:
+    image: anasaemd/three-tier-frontend:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:

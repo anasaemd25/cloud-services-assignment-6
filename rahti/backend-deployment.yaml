@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: backend
+    labels:
+        app: backend
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: backend
+    template:
+        metadata:
+            labels:
+                app: backend
+        spec:
+            containers:
+                - name: backend
+                  image: anasaemd/three-tier-backend:v6
+                  ports:
+                      - containerPort: 8000
+                  envFrom:
+                      - configMapRef:
+                            name: app-config
+                  env:
+                      - name: DB_PASSWORD
+                        valueFrom:
+                            secretKeyRef:
+                                name: generic-mysql-secret
+                                key: DB_PASSWORD
+                      - name: REDIS_HOST
+                        value: "redis-service"
+                  livenessProbe:
+                      httpGet:
+                          path: /healthz
+                          port: 8000
+                      initialDelaySeconds: 15
+                      periodSeconds: 10
+                  readinessProbe:
+                      httpGet:
+                          path: /healthz
+                          port: 8000
+                      initialDelaySeconds: 5
+                      periodSeconds: 5

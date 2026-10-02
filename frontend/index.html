@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Assignment 4 - App</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 40px;
+                line-height: 1.6;
+                max-width: 900px;
+            }
+            .box {
+                padding: 20px;
+                background-color: #f4f4f4;
+                border-radius: 8px;
+                margin-bottom: 20px;
+            }
+            img {
+                max-width: 100%;
+                height: auto;
+                border: 1px solid #ddd;
+                margin-top: 10px;
+                margin-bottom: 30px;
+            }
+            h3 {
+                margin-top: 30px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Cloud Services - Assignment 4</h1>
+
+        <div class="box">
+            <h2>Live Database Test</h2>
+            <p>
+                <strong>Message:</strong>
+                <span id="msg">Loading...</span>
+            </p>
+            <p>
+                <strong>Total Visitors:</strong>
+                <span id="count">Loading...</span>
+            </p>
+            <p>
+                <strong>Database Time:</strong>
+                <span id="time">Loading...</span>
+            </p>
+        </div>
+
+        <h2>Application Description</h2>
+        <p>
+            This application uses a standard 3-tier architecture deployed on CSC Rahti. Instead of
+            packing everything into a single container, the workload is split into three independent
+            services. The
+            <strong>frontend</strong>
+            uses Nginx to serve the web interface and act as a reverse proxy. The
+            <strong>backend</strong>
+            is a Python Flask REST API that processes requests. Finally, the
+            <strong>database</strong>
+            runs on MySQL. Separating the application this way is a best practice because it allows
+            us to scale or update each component individually. For example, if the web interface
+            gets heavy traffic, we can scale just the frontend pods without wasting resources
+            scaling the database.
+        </p>
+
+        <h2>Configuration: ConfigMaps vs. Secrets</h2>
+        <p>
+            While both ConfigMaps and Secrets are used to pass configuration to containers without
+            hardcoding them into the image, they serve distinct purposes. A
+            <strong>ConfigMap</strong>
+            is meant for standard environment variables that aren't dangerous if exposed, such as
+            the database hostname (`DB_HOST`) or port.
+            <strong>Secrets</strong>
+            , on the other hand, are designed specifically for sensitive credentials. In my setup, I
+            used a Kubernetes Secret to store the MySQL root password. This ensures that the
+            credentials remain secure within the Rahti cluster and are never accidentally committed
+            to my public GitHub repository, which would be a major security risk.
+        </p>
+
+        <h2>Database Persistence</h2>
+        <p>
+            Data persistence works very differently in a cloud orchestration platform compared to
+            local development. When using Docker Compose locally, the database volume is typically
+            just a folder mapped to the host laptop's hard drive. However, in a clustered
+            environment like Rahti, pods are ephemeral and can be moved between different physical
+            servers at any time. To solve this, Rahti uses a
+            <strong>PersistentVolumeClaim (PVC)</strong>
+            , which acts as network-attached storage. If the physical node running my MySQL pod
+            crashes, the cluster will automatically recreate the pod on a healthy node and reattach
+            the exact same PVC over the network, ensuring zero data loss.
+        </p>
+
+        <h2>Platform Comparison: Rahti (PaaS) vs. cPouta (IaaS)</h2>
+        <p>
+            Deploying this application on Rahti (PaaS) was a completely different experience
+            compared to the previous cPouta (IaaS) exercise. With cPouta, I had to manually spin up
+            a virtual machine, configure the operating system, install Docker, and manage firewall
+            rules manually. It required a lot of system administration overhead. Rahti, which is
+            built on OpenShift/Kubernetes, abstracts all of that hardware and OS management away. I
+            only needed to provide my container images and declarative YAML files. Rahti
+            automatically handled the internal DNS routing between my containers, provided a public
+            HTTPS route out of the box, and offered built-in load balancing and
+            self-healing—features that would have been very time-consuming to set up manually on
+            IaaS.
+        </p>
+
+        <h2>Orchestration Experiments</h2>
+
+        <h3>1. Pod Recovery (Self-Healing)</h3>
+        <p>
+            <strong>Action:</strong>
+            I manually deleted the running backend pod using the OpenShift CLI.
+        </p>
+        <p>
+            <strong>Result:</strong>
+            Rahti instantly noticed the pod was missing and automatically spun up a replacement pod.
+        </p>
+        <p>
+            <strong>Explanation:</strong>
+            This behavior happens because of the Kubernetes
+            <strong>Deployment</strong>
+            and
+            <strong>ReplicaSet</strong>
+            controllers. They constantly monitor the cluster's state to ensure the desired number of
+            replicas (in this case, 1) matches the actual number of running pods. When the pod was
+            deleted, the controller immediately intervened to restore the desired state.
+        </p>
+        <img
+            src="https://raw.githubusercontent.com/anasaemd25/cloud-services-assignment-4/main/screenshots/Experiment%201%3A%20Pod%20Recovery.png"
+            alt="Pod Recovery Experiment"
+        />
+
+        <h3>2. Scaling</h3>
+        <p>
+            <strong>Action:</strong>
+            I scaled the backend deployment from 1 to 3 replicas.
+        </p>
+        <p>
+            <strong>Result:</strong>
+            Three identical backend pods started running simultaneously.
+        </p>
+        <p>
+            <strong>Explanation:</strong>
+            Even though there are now three different backend pods with three different IP
+            addresses, the frontend doesn't need to know any of them. The frontend simply sends its
+            requests to the internal
+            <strong>Service</strong>
+            name. The Kubernetes Service acts as an internal load balancer, automatically
+            distributing the incoming API requests across all three healthy backend pods.
+        </p>
+        <img
+            src="https://raw.githubusercontent.com/anasaemd25/cloud-services-assignment-4/main/screenshots/Experiment%202%3A%20Scaling.png"
+            alt="Scaling Experiment"
+        />
+
+        <h3>3. Database Persistence Test</h3>
+        <p>
+            <strong>Action:</strong>
+            I deleted the active MySQL database pod.
+        </p>
+        <p>
+            <strong>Result:</strong>
+            A new database pod was automatically created. Once it started, it reconnected to the
+            network storage (PVC). When I refreshed the webpage, the visitor counter and previous
+            data were still there, proving that the data survived the pod destruction.
+        </p>
+        <img
+            src="https://raw.githubusercontent.com/anasaemd25/cloud-services-assignment-4/main/screenshots/Experiment%203%3A%20Persistence.png"
+            alt="Database Persistence Experiment"
+        />
+
+        <h3>4. Application Update</h3>
+        <p>
+            <strong>Action:</strong>
+            I updated the backend application code, pushed a new image tag to Docker Hub, and
+            applied the updated deployment file to Rahti.
+        </p>
+        <p>
+            <strong>Result:</strong>
+            Rahti performed a
+            <strong>Rolling Update</strong>
+            . Instead of taking the application offline, it started creating the new container
+            version first. Only after the new container was fully running and healthy did it
+            terminate the old one, ensuring zero downtime for the end users.
+        </p>
+        <img
+            src="https://raw.githubusercontent.com/anasaemd25/cloud-services-assignment-4/main/screenshots/experiment-4-update.png"
+            alt="Application Update Initiated"
+        />
+        <img
+            src="https://raw.githubusercontent.com/anasaemd25/cloud-services-assignment-4/main/screenshots/experiment-4-update-End.png"
+            alt="Application Update Completed"
+        />
+
+        <h2>Problems Encountered</h2>
+        <p>
+            <strong>Problem:</strong>
+            During the initial setup, I realized I had plain text database passwords stored directly
+            inside my configuration files.
+        </p>
+        <p>
+            <strong>Solution:</strong>
+            Hardcoding credentials is a bad practice, so I removed them immediately. I created a
+            Rahti Secret object to hold the passwords securely and referenced them in my deployment
+            files via environment variables. Finally, I added a `.gitignore` file to ensure my local
+            `.env` files would never be pushed to my public GitHub repository.
+        </p>
+
+        <h2>GitHub Repository</h2>
+        <p>
+            <a href="https://github.com/anasaemd25/cloud-services-assignment-4" target="_blank">
+                Link to my Git Repository
+            </a>
+        </p>
+
+        <script>
+            fetch("/api")
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.error) {
+                        document.getElementById("msg").innerText = "Error: " + data.error;
+                    } else {
+                        document.getElementById("msg").innerText = data.message;
+                        document.getElementById("count").innerText = data.visitor_count;
+                        document.getElementById("time").innerText = data.db_time;
+                    }
+                })
+                .catch((error) => console.error("Error fetching data:", error));
+        </script>
+    </body>
+</html>
