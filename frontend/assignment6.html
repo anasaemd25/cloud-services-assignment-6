@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Cloud Services - Assignment 6</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 40px;
+                line-height: 1.6;
+                max-width: 900px;
+                color: #333;
+            }
+            .box {
+                padding: 20px;
+                background-color: #f4f4f4;
+                border-radius: 8px;
+                margin-bottom: 25px;
+                border-left: 5px solid #007bff;
+            }
+            img {
+                max-width: 100%;
+                height: auto;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                margin-top: 10px;
+                margin-bottom: 30px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #111;
+            }
+            h2 {
+                color: #007bff;
+                border-bottom: 2px solid #f4f4f4;
+                padding-bottom: 8px;
+                margin-top: 40px;
+            }
+            h3 {
+                margin-top: 25px;
+            }
+            code {
+                background-color: #eee;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-family: monospace;
+            }
+            a {
+                color: #007bff;
+                text-decoration: none;
+                font-weight: bold;
+            }
+            a:hover {
+                text-decoration: underline;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Cloud Services - Assignment 6</h1>
+        <p>
+            <strong>Topic:</strong>
+            CI/CD Automation, Observability & Health Probes
+        </p>
+
+        <div class="box">
+            <h2>Part A: Theoretical Questions & Answers</h2>
+
+            <h3>1. CI/CD Pipeline vs. Manual Deployment</h3>
+            <p>
+                <strong>Manual Deployment:</strong>
+                Developers manually build Docker images on their laptops, push them to a container
+                registry, and run
+                <code>oc apply</code>
+                commands from their local terminal. This process is slow, error-prone, and relies
+                heavily on human intervention.
+            </p>
+            <p>
+                <strong>CI/CD Pipeline:</strong>
+                An automated cloud worker monitors the Git repository. Every time new code is pushed
+                to the repository, the worker automatically runs tests, builds the container image,
+                pushes it to Docker Hub, and triggers a rolling update on OpenShift without any
+                manual work.
+            </p>
+
+            <h3>2. GitHub Actions Workflow Structure</h3>
+            <p>
+                A GitHub Actions workflow is defined in
+                <code>.github/workflows/deploy.yml</code>
+                and consists of three key concepts:
+            </p>
+            <ul>
+                <li>
+                    <strong>Triggers (Events):</strong>
+                    Specifies when the workflow runs (e.g.,
+                    <code>on: push</code>
+                    to the
+                    <code>main</code>
+                    branch).
+                </li>
+                <li>
+                    <strong>Jobs:</strong>
+                    A set of steps executed on a runner virtual machine (e.g.,
+                    <code>ubuntu-latest</code>
+                    ).
+                </li>
+                <li>
+                    <strong>Steps:</strong>
+                    Individual tasks executed sequentially, such as checking out code, logging in to
+                    Docker Hub, building the container image, and deploying to Rahti using
+                    <code>oc</code>
+                    CLI.
+                </li>
+            </ul>
+
+            <h3>3. Observability: Metrics, Logs, and Traces</h3>
+            <p>
+                Observability provides deep visibility into a running application using three core
+                pillars:
+            </p>
+            <ul>
+                <li>
+                    <strong>Metrics:</strong>
+                    Numeric data aggregated over time (e.g., "What is the average CPU and RAM usage
+                    of the backend pod?").
+                </li>
+                <li>
+                    <strong>Logs:</strong>
+                    Timestamped text records of discrete events (e.g., "Which request path failed
+                    with a 500 internal server error at 12:30 PM?").
+                </li>
+                <li>
+                    <strong>Traces:</strong>
+                    End-to-end tracking of a single request as it travels across multiple
+                    microservices (e.g., "Which backend microservice caused a 2-second delay during
+                    page loading?").
+                </li>
+            </ul>
+
+            <h3>4. Liveness Probe vs. Readiness Probe</h3>
+            <p>
+                <strong>Liveness Probe:</strong>
+                Checks if the container is still running. If the probe fails (e.g., due to an
+                infinite loop or deadlock), OpenShift kills the container and restarts a new
+                instance.
+            </p>
+            <p>
+                <strong>Readiness Probe:</strong>
+                Checks if the container is ready to accept web traffic. If the probe fails (e.g.,
+                application warming up or database connection lost), OpenShift stops routing traffic
+                to that pod by removing its IP address from the Service endpoints list until it
+                recovers.
+            </p>
+
+            <h3>5. Secure Management of Secrets in CI/CD</h3>
+            <p>
+                Cluster passwords, registry access tokens, and API keys must never be hardcoded
+                inside CI/CD workflow YAML files or committed to Git repositories. If exposed,
+                malicious bots can steal credentials, compromise infrastructure, or generate massive
+                cloud bills. GitHub Actions solves this by storing sensitive values in
+                <strong>Encrypted Repository Secrets</strong>
+                , which are injected securely at runtime and masked in execution logs.
+            </p>
+        </div>
+
+        <h2>Part B: Implementation & Verification Evidence</h2>
+
+        <h3>1. Automated CI/CD Pipeline</h3>
+        <p>
+            Every commit pushed to the
+            <code>main</code>
+            branch automatically triggers a GitHub Actions workflow that builds the backend image,
+            pushes it to Docker Hub, and updates the deployment in CSC Rahti.
+        </p>
+        <img
+            src="https://raw.githubusercontent.com/anasaemd25/cloud-services-assignment-6/main/screenshots/github-actions-success.png"
+            alt="GitHub Actions Pipeline Success"
+        />
+
+        <h3>2. Structured Application Logging</h3>
+        <p>
+            The backend application outputs formatted JSON HTTP request logs, including request
+            paths, HTTP methods, and response times. Live logs are retrieved directly using the
+            OpenShift CLI command
+            <code>oc logs deployment/backend</code>
+            .
+        </p>
+        <img
+            src="https://raw.githubusercontent.com/anasaemd25/cloud-services-assignment-6/main/screenshots/backend-logs.png"
+            alt="Structured Application Logs"
+        />
+
+        <h3>3. Readiness Probe Failure (Pod Status)</h3>
+        <p>
+            When the readiness probe path was intentionally set to a non-existent route (
+            <code>/wrong-path</code>
+            ), OpenShift detected the failed health checks and marked the backend pod status as
+            <code>0/1 READY</code>
+            .
+        </p>
+        <img
+            src="https://raw.githubusercontent.com/anasaemd25/cloud-services-assignment-6/main/screenshots/readiness-probe-failed-pod.png"
+            alt="Readiness Probe Failed Pod Status"
+        />
+
+        <h3>4. Readiness Probe Failure (Endpoints Disconnected)</h3>
+        <p>
+            Because the backend pod failed its readiness probe, OpenShift immediately removed its IP
+            address from the active backend Service endpoints list (showing
+            <code>&lt;none&gt;</code>
+            ), ensuring zero broken web traffic is delivered to end users.
+        </p>
+        <img
+            src="https://raw.githubusercontent.com/anasaemd25/cloud-services-assignment-6/main/screenshots/readiness-probe-failed-endpoints.png"
+            alt="Readiness Probe Failed Endpoints List"
+        />
+
+        <h2>GitHub Repository</h2>
+        <p>
+            <a href="https://github.com/anasaemd25/cloud-services-assignment-6" target="_blank">
+                Link to Assignment 6 Git Repository
+            </a>
+        </p>
+    </body>
+</html>
