@@ -33,7 +33,7 @@ jobs:
 
             - name: Log in to CSC Rahti
               run: |
-                  oc login ${{ secrets.RAHTI_SERVER }} --token=${{ secrets.RAHTI_TOKEN }}
+                  oc login ${{ secrets.RAHTI_SERVER }} --token=${{ secrets.RAHTI_TOKEN }} --insecure-skip-tls-verify=true
 
             - name: Trigger image update on Rahti
               run: |
