@@ -28,6 +28,8 @@ jobs:
 
             - name: Install OpenShift CLI
               uses: redhat-actions/openshift-cli-installer@v1
+              with:
+                  oc: "4.14"
 
             - name: Log in to CSC Rahti
               run: |
